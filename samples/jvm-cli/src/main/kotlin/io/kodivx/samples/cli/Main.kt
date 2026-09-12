@@ -7,7 +7,7 @@ fun main() {
     println("==================================================")
     println("✨ KodivX — Simple data. Native speed. Everywhere.")
     println("==================================================")
-    println("Live Demonstration: Phases 0, 1, 2, 3, and 4\n")
+    println("Live Demonstration: Phases 0, 1, 2, 3, 4, and 5\n")
 
     // ----------------------------------------------------
     // Phase 2: Numerical Arrays & Matrix Core
@@ -44,17 +44,10 @@ fun main() {
     println("Original Sales Table:")
     println(sales)
 
-    // Filtering with SelectionVector
-    val highValueSales = sales.filter { row ->
-        row.getDouble("revenue") >= 8000.0
-    }
-    println("\nFiltered Sales (revenue >= $8,000):")
-    println(highValueSales)
-
     // ----------------------------------------------------
-    // Phase 4: GroupBy & Aggregations
+    // Phase 4: GroupBy & Joins
     // ----------------------------------------------------
-    println("\n--- [3. GroupBy & Multi-Aggregation] ---")
+    println("\n--- [3. GroupBy & Relational Joins] ---")
     val repSummary = sales
         .groupBy("rep")
         .agg(
@@ -65,13 +58,6 @@ fun main() {
         )
         .sortBy("total_rev", ascending = false)
 
-    println("Sales Performance by Representative:")
-    println(repSummary)
-
-    // ----------------------------------------------------
-    // Phase 4: Relational Joins
-    // ----------------------------------------------------
-    println("\n--- [4. Relational Joins (Hash Join)] ---")
     val targets = dataFrameOf(
         "rep" to listOf("Ali", "Sara", "Babar", "Zara"),
         "target" to doubleArrayOf(10000.0, 25000.0, 15000.0, 12000.0),
@@ -79,21 +65,43 @@ fun main() {
     )
 
     val joinedWithTargets = repSummary.join(targets, on = "rep", how = JoinType.Left)
-    println("Rep Performance Joined with Quota Targets (Left Join):")
+    println("Rep Performance Left-Joined with Quota Targets:")
     println(joinedWithTargets)
 
     // ----------------------------------------------------
-    // Phase 4: Statistics & Describe
+    // Phase 5: Expression System (AST, Eval, Vectorized Filter)
+    // ----------------------------------------------------
+    println("\n--- [4. Expression System (Phase 5)] ---")
+    val efficiencyExpr = (col("revenue") / col("deals")).alias("rev_per_deal")
+    println("Expression Pretty Print:")
+    println("   Formula: ${efficiencyExpr.toPrettyString()}")
+    println("   AST Hierarchy:")
+    println(efficiencyExpr.toTreeString())
+
+    // Vectorized Expression Filter: revenue >= 8000.0 AND deals >= 9
+    val highPerformingDeals = sales.filter(
+        col("revenue").gte(8000.0) and col("deals").gte(9)
+    )
+    println("\nFiltered via Expression AST (revenue >= 8000 AND deals >= 9):")
+    println(highPerformingDeals)
+
+    // Expression Projection
+    val performanceTable = sales.select(
+        col("rep"),
+        col("region"),
+        (col("revenue") / col("deals")).alias("rev_per_deal"),
+        col("deals").gte(10).alias("high_volume")
+    )
+    println("\nProjected Table via Expressions (select):")
+    println(performanceTable)
+
+    // ----------------------------------------------------
+    // Phase 4 & 5: Statistics & Describe
     // ----------------------------------------------------
     println("\n--- [5. Statistical Analysis & Describe] ---")
     println("Sales Summary Statistics (describe):")
     println(sales.describe())
-
     println("Correlation (deals vs revenue): ${sales.correlation("deals", "revenue")}")
-    println("Revenue Variance: ${sales.variance("revenue")}")
-    println("Revenue StdDev:   ${sales.stdDev("revenue")}")
-    println("Revenue Median:   ${sales.median("revenue")}")
-    println("Revenue 90th Pct: ${sales.quantile("revenue", 0.90)}")
 
     // ----------------------------------------------------
     // Performance Scale Benchmark
@@ -112,16 +120,12 @@ fun main() {
     )
 
     val start = System.currentTimeMillis()
-    val groupResult = largeDf
-        .groupBy("category")
-        .agg(
-            count(),
-            mean("score").alias("avg_score"),
-            stdDev("score").alias("std_score")
-        )
+    // Vectorized AST Filter over 100,000 rows
+    val filteredLarge = largeDf.filter(
+        col("score").gte(450.0)
+    )
     val duration = System.currentTimeMillis() - start
 
-    println("⚡ GroupBy over $rowCount rows -> ${groupResult.rowCount} groups in ${duration}ms")
-    println(groupResult)
-    println("\n✅ Phase 4 GroupBy, Joins & Statistics Verified Successfully!")
+    println("⚡ Evaluated Expression AST Filter over $rowCount rows -> ${filteredLarge.rowCount} matches in ${duration}ms")
+    println("\n✅ Phase 5 Expression System Verified Successfully!")
 }

@@ -3,9 +3,9 @@ package io.kodivx.frame
 /**
  * Represents an aggregation operation applied over grouped rows or entire columns.
  */
-sealed interface Aggregation {
+sealed interface Aggregation : Expr {
     val column: String?
-    val outputName: String
+    override val outputName: String
 
     fun alias(name: String): Aggregation
 
