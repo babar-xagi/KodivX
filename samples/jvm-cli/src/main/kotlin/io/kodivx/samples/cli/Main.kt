@@ -1,101 +1,96 @@
 package io.kodivx.samples.cli
 
 import io.kodivx.array.*
-import io.kodivx.buffer.primitive.DoubleBuffer
-import io.kodivx.buffer.primitive.IntBuffer
-import io.kodivx.buffer.string.Utf8StringBuffer
-import io.kodivx.core.schema.schema
+import io.kodivx.frame.*
 
 fun main() {
     println("==================================================")
     println("✨ KodivX — Simple data. Native speed. Everywhere.")
     println("==================================================")
-    println("Phase 1 & Phase 2 Live Multiplatform Demonstration\n")
+    println("Live Demonstration: Phases 0, 1, 2, and 3\n")
 
     // ----------------------------------------------------
-    // Phase 1 Demo: Schemas and Columnar Buffers
+    // Phase 2: Numerical Arrays & Matrix Core
     // ----------------------------------------------------
-    println("--- [Phase 1: Core Schema & Columnar Buffers] ---")
-    val userSchema = schema {
-        int("id", nullable = false)
-        string("username")
-        double("balance")
-    }
-    println("📋 Schema: ${userSchema.fieldNames}")
+    println("--- [1. Numerical Arrays & Linear Algebra] ---")
+    val v1 = array(1.0, 2.0, 3.0, 4.0)
+    val v2 = array(10.0, 20.0, 30.0, 40.0)
+    val vResult = (v1 * 2.0) + v2
+    println("Vector result: $vResult")
+    println("Vector stats: sum=${vResult.sum()}, mean=${vResult.mean()}, stdDev=${vResult.stdDev()}")
+    println("Dot product (v1 · v2): ${v1 dot v2}")
 
-    val idBuffer = IntBuffer.of(101, 102, 103)
-    val nameBuffer = Utf8StringBuffer.of("Alice", "Bob", "Charlie")
-    val balanceBuffer = DoubleBuffer.ofNullable(listOf(1540.50, null, 9820.75))
-
-    for (i in 0 until idBuffer.size) {
-        val bal = if (balanceBuffer.isNull(i)) "NULL" else "$" + balanceBuffer.getDouble(i)
-        println("   Row $i: ID=${idBuffer.getInt(i)}, User=${nameBuffer.getString(i)}, Balance=$bal")
-    }
-
-    // ----------------------------------------------------
-    // Phase 2 Demo: Numerical Vectors & Matrices
-    // ----------------------------------------------------
-    println("\n--- [Phase 2: Array and Numerical Core] ---")
-
-    // 1. Vector Operations
-    val a = array(1.0, 2.0, 3.0, 4.0)
-    val b = array(10.0, 20.0, 30.0, 40.0)
-    val c = (a * 2.0) + b
-
-    println("Vector a: $a")
-    println("Vector b: $b")
-    println("Calculated (a * 2) + b: $c")
-    println("Vector stats: sum=${c.sum()}, mean=${c.mean()}, stdDev=${c.stdDev()}")
-
-    // 2. Zero-Copy Slicing & Dot Product
-    val slice = c.slice(1, 4)
-    println("Zero-copy slice [1 until 4]: $slice")
-    println("Dot product (a · b): ${a dot b}")
-
-    // 3. 2D Matrices and Transposition
     val matrix = matrixOf(
         2, 3,
         1.0, 2.0, 3.0,
         4.0, 5.0, 6.0
     )
-    println("\nMatrix M (Shape: ${matrix.shape}):")
-    println(matrix)
+    println("\nMatrix (2x3):\n$matrix")
+    println("O(1) Transpose (3x2):\n${matrix.transpose()}\n")
 
-    val transposed = matrix.transpose()
-    println("O(1) Transposed M^T (Shape: ${transposed.shape}):")
-    println(transposed)
+    // ----------------------------------------------------
+    // Phase 3: Columnar DataFrame MVP
+    // ----------------------------------------------------
+    println("--- [2. Columnar DataFrame Operations] ---")
 
-    // 4. Matrix Multiplication: (2x3) * (3x2) -> (2x2)
-    val weights = matrixOf(
-        3, 2,
-        0.5, 1.0,
-        1.5, 2.0,
-        2.5, 3.0
+    val sales = dataFrameOf(
+        "id" to intArrayOf(101, 102, 103, 104, 105, 106),
+        "rep" to listOf("Ali", "Sara", "Babar", "Sara", "Ali", "Babar"),
+        "region" to listOf("North", "South", "East", "West", "North", "South"),
+        "deals" to intArrayOf(5, 12, 8, 15, 3, 9),
+        "revenue" to doubleArrayOf(4500.0, 12800.0, 7200.0, 16500.0, 2900.0, 8900.0)
     )
-    val matMulResult = matrix matmul weights
-    println("Matrix Multiplication (M matmul W):")
-    println(matMulResult)
 
-    // 5. Broadcast Addition: Matrix (2x3) + Vector (3,)
-    val bias = array(100.0, 200.0, 300.0)
-    val broadcastResult = matrix + bias
-    println("Broadcast Addition (M + Vector Bias):")
-    println(broadcastResult)
+    println("Original Sales Table:")
+    println(sales)
+
+    // 1. Filtering with SelectionVector
+    println("\nFiltered Sales (revenue >= $8,000):")
+    val highValueSales = sales.filter { row ->
+        row.getDouble("revenue") >= 8000.0
+    }
+    println(highValueSales)
+
+    // 2. Select & Sort
+    println("\nTop Performers (Sorted by Revenue Descending):")
+    val sortedSummary = sales
+        .select("rep", "region", "deals", "revenue")
+        .sortBy("revenue", ascending = false)
+    println(sortedSummary)
+
+    // 3. Simple Aggregations
+    println("\nAggregations:")
+    println("   Total Transactions: ${sales.count()}")
+    println("   Total Revenue:      $${sales.sum("revenue")}")
+    println("   Average Deal Size:  $${sales.mean("revenue")}")
+    println("   Top Deal Value:     $${sales.max("revenue")}")
+    println("   Smallest Deal:      $${sales.min("revenue")}")
+
+    // 4. Head & Tail
+    println("\nTop 2 Deals (head):")
+    println(sortedSummary.head(2))
 
     // ----------------------------------------------------
     // Performance Scale Benchmark
     // ----------------------------------------------------
-    val n = 1_000_000
-    val vec1 = DoubleVector(DoubleArray(n) { 1.5 })
-    val vec2 = DoubleVector(DoubleArray(n) { 2.5 })
+    println("\n--- [3. High-Throughput Scale Benchmark] ---")
+    val rowCount = 100_000
+    val testIds = IntArray(rowCount) { it }
+    val testScores = DoubleArray(rowCount) { (it % 500).toDouble() }
+
+    val largeDf = dataFrameOf(
+        "id" to testIds,
+        "score" to testScores
+    )
 
     val start = System.currentTimeMillis()
-    val vec3 = vec1 + vec2
-    val dot = vec1 dot vec2
+    val filteredLarge = largeDf.filter { row ->
+        row.getDouble("score") >= 400.0
+    }
+    val avgScore = filteredLarge.mean("score")
     val duration = System.currentTimeMillis() - start
 
-    println("\n⚡ Scale Benchmark (1,000,000 Elements):")
-    println("   Vector Addition + Dot Product took: ${duration}ms")
-    println("   Vec3[0] = ${vec3[0]}, Dot = $dot")
-    println("\n✅ Phase 2 Array Core Verified Successfully!")
+    println("⚡ Filtered $rowCount rows -> ${filteredLarge.rowCount} matches in ${duration}ms")
+    println("   Average filtered score = $avgScore")
+    println("\n✅ Phase 3 DataFrame MVP Verified Successfully!")
 }
