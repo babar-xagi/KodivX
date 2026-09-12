@@ -7,7 +7,7 @@ fun main() {
     println("==================================================")
     println("✨ KodivX — Simple data. Native speed. Everywhere.")
     println("==================================================")
-    println("Live Demonstration: Phases 0, 1, 2, and 3\n")
+    println("Live Demonstration: Phases 0, 1, 2, 3, and 4\n")
 
     // ----------------------------------------------------
     // Phase 2: Numerical Arrays & Matrix Core
@@ -44,53 +44,84 @@ fun main() {
     println("Original Sales Table:")
     println(sales)
 
-    // 1. Filtering with SelectionVector
-    println("\nFiltered Sales (revenue >= $8,000):")
+    // Filtering with SelectionVector
     val highValueSales = sales.filter { row ->
         row.getDouble("revenue") >= 8000.0
     }
+    println("\nFiltered Sales (revenue >= $8,000):")
     println(highValueSales)
 
-    // 2. Select & Sort
-    println("\nTop Performers (Sorted by Revenue Descending):")
-    val sortedSummary = sales
-        .select("rep", "region", "deals", "revenue")
-        .sortBy("revenue", ascending = false)
-    println(sortedSummary)
+    // ----------------------------------------------------
+    // Phase 4: GroupBy & Aggregations
+    // ----------------------------------------------------
+    println("\n--- [3. GroupBy & Multi-Aggregation] ---")
+    val repSummary = sales
+        .groupBy("rep")
+        .agg(
+            sum("revenue").alias("total_rev"),
+            mean("revenue").alias("avg_deal"),
+            sum("deals").alias("total_deals"),
+            count().alias("num_transactions")
+        )
+        .sortBy("total_rev", ascending = false)
 
-    // 3. Simple Aggregations
-    println("\nAggregations:")
-    println("   Total Transactions: ${sales.count()}")
-    println("   Total Revenue:      $${sales.sum("revenue")}")
-    println("   Average Deal Size:  $${sales.mean("revenue")}")
-    println("   Top Deal Value:     $${sales.max("revenue")}")
-    println("   Smallest Deal:      $${sales.min("revenue")}")
+    println("Sales Performance by Representative:")
+    println(repSummary)
 
-    // 4. Head & Tail
-    println("\nTop 2 Deals (head):")
-    println(sortedSummary.head(2))
+    // ----------------------------------------------------
+    // Phase 4: Relational Joins
+    // ----------------------------------------------------
+    println("\n--- [4. Relational Joins (Hash Join)] ---")
+    val targets = dataFrameOf(
+        "rep" to listOf("Ali", "Sara", "Babar", "Zara"),
+        "target" to doubleArrayOf(10000.0, 25000.0, 15000.0, 12000.0),
+        "tier" to listOf("Gold", "Platinum", "Silver", "Bronze")
+    )
+
+    val joinedWithTargets = repSummary.join(targets, on = "rep", how = JoinType.Left)
+    println("Rep Performance Joined with Quota Targets (Left Join):")
+    println(joinedWithTargets)
+
+    // ----------------------------------------------------
+    // Phase 4: Statistics & Describe
+    // ----------------------------------------------------
+    println("\n--- [5. Statistical Analysis & Describe] ---")
+    println("Sales Summary Statistics (describe):")
+    println(sales.describe())
+
+    println("Correlation (deals vs revenue): ${sales.correlation("deals", "revenue")}")
+    println("Revenue Variance: ${sales.variance("revenue")}")
+    println("Revenue StdDev:   ${sales.stdDev("revenue")}")
+    println("Revenue Median:   ${sales.median("revenue")}")
+    println("Revenue 90th Pct: ${sales.quantile("revenue", 0.90)}")
 
     // ----------------------------------------------------
     // Performance Scale Benchmark
     // ----------------------------------------------------
-    println("\n--- [3. High-Throughput Scale Benchmark] ---")
+    println("\n--- [6. High-Throughput Scale Benchmark] ---")
     val rowCount = 100_000
     val testIds = IntArray(rowCount) { it }
+    val categories = listOf("Cat-A", "Cat-B", "Cat-C", "Cat-D", "Cat-E")
+    val testCats = Array(rowCount) { categories[it % categories.size] }
     val testScores = DoubleArray(rowCount) { (it % 500).toDouble() }
 
     val largeDf = dataFrameOf(
         "id" to testIds,
+        "category" to testCats,
         "score" to testScores
     )
 
     val start = System.currentTimeMillis()
-    val filteredLarge = largeDf.filter { row ->
-        row.getDouble("score") >= 400.0
-    }
-    val avgScore = filteredLarge.mean("score")
+    val groupResult = largeDf
+        .groupBy("category")
+        .agg(
+            count(),
+            mean("score").alias("avg_score"),
+            stdDev("score").alias("std_score")
+        )
     val duration = System.currentTimeMillis() - start
 
-    println("⚡ Filtered $rowCount rows -> ${filteredLarge.rowCount} matches in ${duration}ms")
-    println("   Average filtered score = $avgScore")
-    println("\n✅ Phase 3 DataFrame MVP Verified Successfully!")
+    println("⚡ GroupBy over $rowCount rows -> ${groupResult.rowCount} groups in ${duration}ms")
+    println(groupResult)
+    println("\n✅ Phase 4 GroupBy, Joins & Statistics Verified Successfully!")
 }
