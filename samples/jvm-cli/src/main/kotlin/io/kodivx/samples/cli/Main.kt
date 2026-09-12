@@ -7,7 +7,7 @@ fun main() {
     println("==================================================")
     println("✨ KodivX — Simple data. Native speed. Everywhere.")
     println("==================================================")
-    println("Live Demonstration: Phases 0, 1, 2, 3, 4, and 5\n")
+    println("Live Demonstration: Phases 0 through 6\n")
 
     // ----------------------------------------------------
     // Phase 2: Numerical Arrays & Matrix Core
@@ -29,9 +29,9 @@ fun main() {
     println("O(1) Transpose (3x2):\n${matrix.transpose()}\n")
 
     // ----------------------------------------------------
-    // Phase 3: Columnar DataFrame MVP
+    // Phase 3 & 4: Columnar DataFrame & Joins
     // ----------------------------------------------------
-    println("--- [2. Columnar DataFrame Operations] ---")
+    println("--- [2. Columnar DataFrame & Relational Joins] ---")
 
     val sales = dataFrameOf(
         "id" to intArrayOf(101, 102, 103, 104, 105, 106),
@@ -41,13 +41,12 @@ fun main() {
         "revenue" to doubleArrayOf(4500.0, 12800.0, 7200.0, 16500.0, 2900.0, 8900.0)
     )
 
-    println("Original Sales Table:")
-    println(sales)
+    val targets = dataFrameOf(
+        "rep" to listOf("Ali", "Sara", "Babar", "Zara"),
+        "target" to doubleArrayOf(10000.0, 25000.0, 15000.0, 12000.0),
+        "tier" to listOf("Gold", "Platinum", "Silver", "Bronze")
+    )
 
-    // ----------------------------------------------------
-    // Phase 4: GroupBy & Joins
-    // ----------------------------------------------------
-    println("\n--- [3. GroupBy & Relational Joins] ---")
     val repSummary = sales
         .groupBy("rep")
         .agg(
@@ -58,55 +57,50 @@ fun main() {
         )
         .sortBy("total_rev", ascending = false)
 
-    val targets = dataFrameOf(
-        "rep" to listOf("Ali", "Sara", "Babar", "Zara"),
-        "target" to doubleArrayOf(10000.0, 25000.0, 15000.0, 12000.0),
-        "tier" to listOf("Gold", "Platinum", "Silver", "Bronze")
-    )
-
     val joinedWithTargets = repSummary.join(targets, on = "rep", how = JoinType.Left)
-    println("Rep Performance Left-Joined with Quota Targets:")
     println(joinedWithTargets)
 
     // ----------------------------------------------------
-    // Phase 5: Expression System (AST, Eval, Vectorized Filter)
+    // Phase 5: Expression System
     // ----------------------------------------------------
-    println("\n--- [4. Expression System (Phase 5)] ---")
+    println("\n--- [3. Expression System (AST & Evaluator)] ---")
     val efficiencyExpr = (col("revenue") / col("deals")).alias("rev_per_deal")
-    println("Expression Pretty Print:")
-    println("   Formula: ${efficiencyExpr.toPrettyString()}")
-    println("   AST Hierarchy:")
-    println(efficiencyExpr.toTreeString())
+    println("Expression Formula: ${efficiencyExpr.toPrettyString()}")
 
-    // Vectorized Expression Filter: revenue >= 8000.0 AND deals >= 9
     val highPerformingDeals = sales.filter(
         col("revenue").gte(8000.0) and col("deals").gte(9)
     )
     println("\nFiltered via Expression AST (revenue >= 8000 AND deals >= 9):")
     println(highPerformingDeals)
 
-    // Expression Projection
-    val performanceTable = sales.select(
-        col("rep"),
-        col("region"),
-        (col("revenue") / col("deals")).alias("rev_per_deal"),
-        col("deals").gte(10).alias("high_volume")
-    )
-    println("\nProjected Table via Expressions (select):")
-    println(performanceTable)
+    // ----------------------------------------------------
+    // Phase 6: Lazy Query Engine & Optimizer
+    // ----------------------------------------------------
+    println("\n--- [4. Lazy Query Engine & Optimizer (Phase 6)] ---")
+    val lazyPipeline = sales.lazy()
+        .filter(col("revenue").gt(5000.0))
+        .filter(col("deals").gte(8))
+        .select(
+            col("rep"),
+            col("region"),
+            col("deals"),
+            col("revenue"),
+            (col("revenue") / col("deals")).alias("rev_per_deal")
+        )
+        .sortBy("revenue", ascending = false)
+        .limit(2)
+
+    println("Pipeline Diagnostics (explain):")
+    println(lazyPipeline.explain(showOptimized = true))
+
+    println("\nExecuting Lazy Pipeline (collect):")
+    val lazyResult = lazyPipeline.collect()
+    println(lazyResult)
 
     // ----------------------------------------------------
-    // Phase 4 & 5: Statistics & Describe
+    // High-Throughput Scale Benchmark
     // ----------------------------------------------------
-    println("\n--- [5. Statistical Analysis & Describe] ---")
-    println("Sales Summary Statistics (describe):")
-    println(sales.describe())
-    println("Correlation (deals vs revenue): ${sales.correlation("deals", "revenue")}")
-
-    // ----------------------------------------------------
-    // Performance Scale Benchmark
-    // ----------------------------------------------------
-    println("\n--- [6. High-Throughput Scale Benchmark] ---")
+    println("\n--- [5. High-Throughput Scale Benchmark] ---")
     val rowCount = 100_000
     val testIds = IntArray(rowCount) { it }
     val categories = listOf("Cat-A", "Cat-B", "Cat-C", "Cat-D", "Cat-E")
@@ -120,12 +114,16 @@ fun main() {
     )
 
     val start = System.currentTimeMillis()
-    // Vectorized AST Filter over 100,000 rows
-    val filteredLarge = largeDf.filter(
-        col("score").gte(450.0)
-    )
+    // Lazy query with optimizer combining adjacent filters and limits
+    val lazyBenchmarkResult = largeDf.lazy()
+        .filter(col("score").gte(400.0))
+        .filter(col("score").lt(480.0))
+        .select(col("category"), col("score"))
+        .limit(10)
+        .collect()
     val duration = System.currentTimeMillis() - start
 
-    println("⚡ Evaluated Expression AST Filter over $rowCount rows -> ${filteredLarge.rowCount} matches in ${duration}ms")
-    println("\n✅ Phase 5 Expression System Verified Successfully!")
+    println("⚡ Optimized Lazy Query over $rowCount rows -> ${lazyBenchmarkResult.rowCount} rows in ${duration}ms")
+    println(lazyBenchmarkResult)
+    println("\n✅ Phase 6 Lazy Query Engine Verified Successfully!")
 }
